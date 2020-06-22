@@ -59,6 +59,39 @@ router.get('/:username?/:password?', (req, res) => {
 });
 
 router.post("/generate", (req, res) => {
+    function generate() {
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15).toUpperCase();
+    }
+
+    let user_pass_sets = [];
+    for (let i = 1; i <= 10; i++) {
+        let username = generate();
+        let password = generate();
+
+        user_pass_sets.push({
+            username: username,
+            password: password,
+            status: 'available'
+        });
+    }
+
+
+    let MongoClient = require('mongodb').MongoClient;
+    let url = "mongodb://MohAnghabo:MohAnghabo1234@ds035428.mlab.com:35428/heroku_4nlf1k9s";
+
+    MongoClient.connect(url, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+    }, function (err, db) {
+        if (err) throw err;
+        let dbo = db.db("heroku_4nlf1k9s");
+
+        dbo.collection("users").insertMany(user_pass_sets, function (err, result) {
+            if (err) throw err;
+            res.send("Number of documents inserted: " + result.insertedCount);
+            db.close();
+        });
+    });
 
 });
 
