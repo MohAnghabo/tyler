@@ -1,65 +1,44 @@
 let express = require('express');
 let router = express.Router();
 
-/* GET home page. */
-router.get('/', function (req, res, _next) {
-    // Get the documents collection
-    let MongoClient = require('mongodb').MongoClient;
-    let url = "mongodb://heroku_4nlf1k9s:thg164rul3pplcla7of7utdbjk@ds035428.mlab.com:35428/heroku_4nlf1k9s";
+const userSchema = require('../db/users');
 
-    MongoClient.connect(url, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-    }, function (err, db) {
-        if (err) throw err;
-        let dbo = db.db("heroku_4nlf1k9s");
-        dbo.collection("users").findOne(
-            {"status": "available"},
-            (err, result) => {
-                if (err) throw err;
-                if (result) {
-                    res.redirect(`/test/${result.username}/${result.password}`);
-                } else {
-                    res.send('Sorry, all places are taken');
-                }
-                db.close();
-            });
+/* GET home page. */
+router.get('/', function (req, res, next) {
+    // Get the documents collection
+    userSchema.findOne({"status": "available"}, (err, user) => {
+        if (err) return res.send(err);
+        if (!user) return res.render('msg', {msg: "Sorry, All available seats are taken"});
+        res.redirect(`/test/${user.username}/${user.password}`);
     });
 });
 
-router.get('/:username?/:password?', (req, res) => {
-    let MongoClient = require('mongodb').MongoClient;
-    let url = "mongodb://MohAnghabo:MohAnghabo1234@ds035428.mlab.com:35428/heroku_4nlf1k9s";
-
-    MongoClient.connect(url, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-    }, function (err, db) {
-        if (err) throw err;
-        let dbo = db.db("heroku_4nlf1k9s");
-        let my_query = {username: req.params.username};
-        let new_values = {$set: {status: "visited"}};
-        dbo.collection("users").updateOne(my_query, new_values, function (err, result) {
-            let res_message;
-            if (err) {
-                res_message = {
-                    status: "error",
-                    msg: err
-                }
-            } else {
-                res_message = {
-                    msg: "1 document updated",
-                    result: result
-                };
-            }
-            res.send(res_message)
-            db.close();
+router.get('/:username/:password', (req, res) => {
+    userSchema.findOne({"username": req.params.username}, (err, doc) => {
+        if (err) return res.send(err);
+        if (doc.status === "visited") return res.render('msg', {msg: "Sorry, but you can perform the test only once."});
+        if (!doc) return res.send("No user, please try again");
+        doc.status = 'visited';
+        doc.save((err, doc) => {
+            if (err) return res.send(err);
+            res.render('msg', {msg: "Thank you for performing the test, we will get back to you soon"});
         });
     });
 });
 
-router.post("/generate", (req, res) => {
+router.get('/generate', (req, res) => {
+    let users = [];
+    for (let i = 0; i <= 9; i++) {
+        users.push({
+            username: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            password: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+        });
+    }
 
+    userSchema.insertMany(users, (err, doc) => {
+        if (err) return res.send(err);
+        return res.send(doc);
+    });
 });
 
 module.exports = router;
